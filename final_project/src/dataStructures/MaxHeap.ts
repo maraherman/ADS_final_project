@@ -1,140 +1,271 @@
 import type { Product } from '../types/Product';
 
+class HeapNode {
+  data: Product;
+
+  left: HeapNode | null;
+  right: HeapNode | null;
+  parent: HeapNode | null;
+
+  constructor(data: Product) {
+    this.data = data;
+
+    this.left = null;
+    this.right = null;
+    this.parent = null;
+  }
+}
+
 export class MaxHeap {
-  heap: Product[];
+  root: HeapNode | null;
 
   constructor() {
-    this.heap = [];
+    this.root = null;
   }
 
   insert(product: Product) {
-    this.heap.push(product);
+    const newNode = new HeapNode(product);
 
-    this.heapifyUp();
-  }
+    if (!this.root) {
+      this.root = newNode;
+      return;
+    }
 
-  heapifyUp() {
-    let index = this.heap.length - 1;
+    const queue: HeapNode[] = [this.root];
 
-    while (index > 0) {
-      const parentIndex = Math.floor((index - 1) / 2);
+    while (queue.length > 0) {
+      const current = queue.shift()!;
 
-      if (
-        this.heap[parentIndex].popularity >=
-        this.heap[index].popularity
-      ) {
-        break;
+      if (!current.left) {
+        current.left = newNode;
+        newNode.parent = current;
+
+        this.heapifyUp(newNode);
+
+        return;
       }
 
-      [
-        this.heap[parentIndex],
-        this.heap[index],
-      ] = [
-        this.heap[index],
-        this.heap[parentIndex],
-      ];
+      else {
+        queue.push(current.left);
+      }
 
-      index = parentIndex;
+      if (!current.right) {
+        current.right = newNode;
+        newNode.parent = current;
+
+        this.heapifyUp(newNode);
+
+        return;
+      }
+
+      else {
+        queue.push(current.right);
+      }
     }
   }
 
+  heapifyUp(node: HeapNode) {
+    while (
+      node.parent &&
+      node.data.popularity >
+        node.parent.data.popularity
+    ) {
+      [
+        node.data,
+        node.parent.data,
+      ] = [
+        node.parent.data,
+        node.data,
+      ];
+
+      node = node.parent;
+    }
+  }
 
   extractMax() {
-    if (this.heap.length === 0) {
+    if (!this.root) {
       return null;
     }
 
-    if (this.heap.length === 1) {
-      return this.heap.pop();
+    const max = this.root.data;
+
+    const deepestNode = this.getDeepestNode();
+
+    if (!deepestNode) {
+      return max;
     }
 
-    const max = this.heap[0];
+    if (deepestNode === this.root) {
+      this.root = null;
 
-    this.heap[0] = this.heap.pop()!;
+      return max;
+    }
 
-    this.heapifyDown();
+    this.root.data = deepestNode.data;
+
+    if (
+      deepestNode.parent?.left === deepestNode
+    ) {
+      deepestNode.parent.left = null;
+    }
+
+    else if (
+      deepestNode.parent?.right === deepestNode
+    ) {
+      deepestNode.parent.right = null;
+    }
+
+    this.heapifyDown(this.root);
 
     return max;
   }
 
-  heapifyDown() {
-    let index = 0;
-
-    while (true) {
-      let largest = index;
-
-      const leftChild = 2 * index + 1;
-      const rightChild = 2 * index + 2;
+  heapifyDown(node: HeapNode) {
+    while (node) {
+      let largest = node;
 
       if (
-        leftChild < this.heap.length &&
-        this.heap[leftChild].popularity >
-          this.heap[largest].popularity
+        node.left &&
+        node.left.data.popularity >
+          largest.data.popularity
       ) {
-        largest = leftChild;
+        largest = node.left;
       }
 
       if (
-        rightChild < this.heap.length &&
-        this.heap[rightChild].popularity >
-          this.heap[largest].popularity
+        node.right &&
+        node.right.data.popularity >
+          largest.data.popularity
       ) {
-        largest = rightChild;
+        largest = node.right;
       }
 
-      if (largest === index) {
+      if (largest === node) {
         break;
       }
 
       [
-        this.heap[index],
-        this.heap[largest],
+        node.data,
+        largest.data,
       ] = [
-        this.heap[largest],
-        this.heap[index],
+        largest.data,
+        node.data,
       ];
 
-      index = largest;
+      node = largest;
     }
   }
 
   delete(productName: string) {
-    const index = this.heap.findIndex(
-      (product) => product.name === productName
+    const node = this.findNode(
+      this.root,
+      productName
     );
 
-    if (index === -1) return;
+    if (!node) return;
 
-    this.heap[index] =
-      this.heap[this.heap.length - 1];
+    const deepestNode = this.getDeepestNode();
 
-    this.heap.pop();
+    if (!deepestNode) return;
 
-    this.heapifyDown();
+    node.data = deepestNode.data;
+
+    if (
+      deepestNode.parent?.left === deepestNode
+    ) {
+      deepestNode.parent.left = null;
+    }
+
+    else if (
+      deepestNode.parent?.right === deepestNode
+    ) {
+      deepestNode.parent.right = null;
+    }
+
+    this.heapifyDown(node);
   }
 
   edit(
     productName: string,
     updatedProduct: Product
   ) {
-    const index = this.heap.findIndex(
-      (product) => product.name === productName
+    const node = this.findNode(
+      this.root,
+      productName
     );
 
-    if (index === -1) return;
+    if (!node) return;
 
-    this.heap[index] = updatedProduct;
+    node.data = updatedProduct;
 
-    this.heapifyUp();
+    this.heapifyUp(node);
 
-    this.heapifyDown();
+    this.heapifyDown(node);
   }
 
   peek() {
-    return this.heap[0];
+    return this.root?.data;
   }
 
   getHeap() {
-    return this.heap;
+    const result: Product[] = [];
+
+    const traverse = (
+      node: HeapNode | null
+    ) => {
+      if (!node) return;
+
+      result.push(node.data);
+
+      traverse(node.left);
+
+      traverse(node.right);
+    };
+
+    traverse(this.root);
+
+    return result;
+  }
+
+  private findNode(
+    node: HeapNode | null,
+    productName: string
+  ): HeapNode | null {
+
+    if (!node) return null;
+
+    if (node.data.name === productName) {
+      return node;
+    }
+
+    return (
+      this.findNode(node.left, productName) ||
+      this.findNode(node.right, productName)
+    );
+  }
+
+  private getDeepestNode():
+    | HeapNode
+    | null {
+
+    if (!this.root) return null;
+
+    const queue: HeapNode[] = [this.root];
+
+    let current: HeapNode = this.root;
+
+    while (queue.length > 0) {
+      current = queue.shift()!;
+
+      if (current.left) {
+        queue.push(current.left);
+      }
+
+      if (current.right) {
+        queue.push(current.right);
+      }
+    }
+
+    return current;
   }
 }
