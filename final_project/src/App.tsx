@@ -85,7 +85,7 @@ function App() {
 
     rbTree.edit(existingProduct.price, updatedProduct);
 
-    heap.heap = [];
+    heap.root = null;
 
     products
       .map((product: any) =>
@@ -115,7 +115,7 @@ function App() {
 
     rbTree.delete(productToDelete.price);
 
-    heap.heap = [];
+    heap.root = null;
 
     products
       .filter(
